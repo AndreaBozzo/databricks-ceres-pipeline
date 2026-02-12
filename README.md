@@ -14,17 +14,7 @@ This repository contains the **Databricks** analytics pipeline for the [Ceres](h
 
 ## Architecture
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────────┐     ┌──────────────────────┐
-│   Hugging Face   │────▶│     Bronze       │────▶│       Silver        │────▶│        Gold          │
-│                 │     │                 │     │                     │     │                      │
-│ ceres-open-data │     │ Raw ingestion   │     │ Cleaned, typed,    │     │ • Monthly trends     │
-│ -index          │     │ + audit columns │     │ deduplicated       │     │ • Topic analysis     │
-└─────────────────┘     └─────────────────┘     └─────────────────────┘     │ • Portal stats       │
-                                                                            │ • ML features (TF)   │
-                                                                            │ • Semantic search     │
-                                                                            └──────────────────────┘
-```
+![Ceres Databricks Pipeline Architecture](docs/assets/architecture.png)
 
 ## Notebooks
 
