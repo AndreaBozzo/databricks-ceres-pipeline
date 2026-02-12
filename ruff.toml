@@ -4,6 +4,16 @@
 target-version = "py311"
 line-length = 120
 
+# Databricks notebooks contain magic commands (%pip, dbutils) that are not valid
+# Python syntax.  Exclude them from linting — they are validated at deploy time
+# by the Databricks Asset Bundle CLI instead.
+exclude = [
+    "01_ingest_huggingface_to_bronze.py",
+    "02_process_bronze_to_silver.py",
+    "03_create_gold_analytics.py",
+    "04_semantic_search_engine.py",
+]
+
 [lint]
 select = [
     "E",    # pycodestyle errors
@@ -14,10 +24,3 @@ select = [
     "B",    # flake8-bugbear
     "SIM",  # flake8-simplify
 ]
-ignore = [
-    "E402",  # module-level import not at top — Databricks notebooks use %pip and restartPython
-    "F821",  # undefined name — `spark`, `dbutils`, `display` are Databricks globals
-]
-
-[lint.per-file-ignores]
-"tests/*" = ["S101"]  # Allow assert in tests

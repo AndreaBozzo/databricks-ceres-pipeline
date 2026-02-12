@@ -9,7 +9,6 @@ Spark transformations defined in 02_process_bronze_to_silver.py.
 import pandas as pd
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers — mirror the Silver transformation logic in pure Pandas
 # ---------------------------------------------------------------------------
