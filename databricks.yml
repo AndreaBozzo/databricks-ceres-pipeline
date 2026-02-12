@@ -96,13 +96,10 @@ targets:
   dev:
     mode: development
     default: true
-    workspace:
-      host: ${workspace.host}
 
   prod:
     mode: production
     workspace:
-      host: ${workspace.host}
       root_path: /Shared/ceres-pipeline
     run_as:
       service_principal_name: ${var.service_principal_name}
