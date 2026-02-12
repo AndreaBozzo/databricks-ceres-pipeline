@@ -1,0 +1,23 @@
+# Ruff configuration for Databricks notebooks
+# See https://docs.astral.sh/ruff/configuration/
+
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E402",  # module-level import not at top — Databricks notebooks use %pip and restartPython
+    "F821",  # undefined name — `spark`, `dbutils`, `display` are Databricks globals
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["S101"]  # Allow assert in tests

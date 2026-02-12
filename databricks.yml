@@ -1,0 +1,111 @@
+# Databricks Asset Bundle configuration for the Ceres pipeline.
+# See https://docs.databricks.com/dev-tools/bundles/index.html
+
+bundle:
+  name: ceres-pipeline
+
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: main
+  schema:
+    description: Schema (database) name
+    default: ceres
+
+artifacts:
+  default:
+    type: whl
+    build: echo "no wheel to build"
+
+resources:
+  jobs:
+    ceres_pipeline:
+      name: "Ceres Open Data Pipeline"
+      description: "Medallion Architecture pipeline: HuggingFace → Bronze → Silver → Gold + Semantic Search"
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"   # Daily at 06:00 UTC
+        timezone_id: "UTC"
+        pause_status: PAUSED
+      tags:
+        project: ceres
+        pipeline: medallion
+      tasks:
+        - task_key: ingest_bronze
+          description: "Ingest Ceres dataset from Hugging Face into Bronze layer"
+          notebook_task:
+            notebook_path: ./01_ingest_huggingface_to_bronze.py
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            num_workers: 0
+            node_type_id: "i3.xlarge"
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: singleNode
+            custom_tags:
+              ResourceClass: SingleNode
+
+        - task_key: process_silver
+          depends_on:
+            - task_key: ingest_bronze
+          description: "Clean and transform Bronze data into Silver layer"
+          notebook_task:
+            notebook_path: ./02_process_bronze_to_silver.py
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            num_workers: 0
+            node_type_id: "i3.xlarge"
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: singleNode
+            custom_tags:
+              ResourceClass: SingleNode
+
+        - task_key: create_gold
+          depends_on:
+            - task_key: process_silver
+          description: "Generate Gold analytics tables"
+          notebook_task:
+            notebook_path: ./03_create_gold_analytics.py
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            num_workers: 0
+            node_type_id: "i3.xlarge"
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: singleNode
+            custom_tags:
+              ResourceClass: SingleNode
+
+        - task_key: semantic_search
+          depends_on:
+            - task_key: process_silver
+          description: "Build ML feature store and semantic search engine"
+          notebook_task:
+            notebook_path: ./04_semantic_search_engine.py
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            num_workers: 0
+            node_type_id: "i3.xlarge"
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: singleNode
+            custom_tags:
+              ResourceClass: SingleNode
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: ${workspace.host}
+
+  prod:
+    mode: production
+    workspace:
+      host: ${workspace.host}
+      root_path: /Shared/ceres-pipeline
+    run_as:
+      service_principal_name: ${var.service_principal_name}
+    variables:
+      service_principal_name:
+        description: Service principal for production runs
