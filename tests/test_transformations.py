@@ -13,6 +13,7 @@ import pytest
 # Helpers — mirror the Silver transformation logic in pure Pandas
 # ---------------------------------------------------------------------------
 
+
 def apply_silver_transforms(df: pd.DataFrame) -> pd.DataFrame:
     """Apply the same cleaning rules as 02_process_bronze_to_silver.py."""
     # 1. Filter duplicates
@@ -24,9 +25,7 @@ def apply_silver_transforms(df: pd.DataFrame) -> pd.DataFrame:
         df[col_name] = pd.to_datetime(df[col_name], errors="coerce")
 
     # 3. Split tags
-    df["tags"] = df["tags"].apply(
-        lambda x: [t.strip() for t in x.split(",")] if isinstance(x, str) and x else []
-    )
+    df["tags"] = df["tags"].apply(lambda x: [t.strip() for t in x.split(",")] if isinstance(x, str) and x else [])
 
     # 4. Standardize text
     df["title"] = df["title"].str.strip()
@@ -38,6 +37,7 @@ def apply_silver_transforms(df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def sample_bronze_df() -> pd.DataFrame:
@@ -62,6 +62,7 @@ def sample_bronze_df() -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestSilverTransformations:
     def test_duplicates_removed(self, sample_bronze_df: pd.DataFrame):
