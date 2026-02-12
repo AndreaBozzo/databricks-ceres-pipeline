@@ -1,3 +1,4 @@
+# Databricks notebook source
 # COMMAND ----------
 from pyspark.ml.feature import Tokenizer, StopWordsRemover, HashingTF
 from pyspark.sql.functions import col, concat_ws, lower, regexp_replace, udf, lit

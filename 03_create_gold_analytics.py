@@ -1,3 +1,4 @@
+# Databricks notebook source
 # COMMAND ----------
 from pyspark.sql.functions import col, explode, size, date_format, year
 

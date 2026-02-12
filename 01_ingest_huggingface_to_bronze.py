@@ -1,3 +1,4 @@
+# Databricks notebook source
 # COMMAND ----------
 # Dependency pinning is required to ensure compatibility with Databricks Runtime and HF FileSystem
 %pip install "huggingface_hub<0.20" "datasets==2.15.0"
