@@ -32,6 +32,8 @@ jobs:
   validate-bundle:
     name: Validate Databricks Bundle
     runs-on: ubuntu-latest
+    # Only runs when Databricks credentials are configured as repository secrets
+    if: ${{ vars.HAS_DATABRICKS_CREDENTIALS == 'true' }}
     steps:
       - uses: actions/checkout@v4
 
