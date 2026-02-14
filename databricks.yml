@@ -12,11 +12,6 @@ variables:
     description: Schema (database) name
     default: ceres
 
-artifacts:
-  default:
-    type: whl
-    build: echo "no wheel to build"
-
 resources:
   jobs:
     ceres_pipeline:
@@ -34,15 +29,6 @@ resources:
           description: "Ingest Ceres dataset from Hugging Face into Bronze layer"
           notebook_task:
             notebook_path: ./01_ingest_huggingface_to_bronze.py
-          new_cluster:
-            spark_version: "15.4.x-scala2.12"
-            num_workers: 0
-            node_type_id: "i3.xlarge"
-            spark_conf:
-              spark.master: "local[*]"
-              spark.databricks.cluster.profile: singleNode
-            custom_tags:
-              ResourceClass: SingleNode
 
         - task_key: process_silver
           depends_on:
@@ -50,15 +36,6 @@ resources:
           description: "Clean and transform Bronze data into Silver layer"
           notebook_task:
             notebook_path: ./02_process_bronze_to_silver.py
-          new_cluster:
-            spark_version: "15.4.x-scala2.12"
-            num_workers: 0
-            node_type_id: "i3.xlarge"
-            spark_conf:
-              spark.master: "local[*]"
-              spark.databricks.cluster.profile: singleNode
-            custom_tags:
-              ResourceClass: SingleNode
 
         - task_key: create_gold
           depends_on:
@@ -66,15 +43,6 @@ resources:
           description: "Generate Gold analytics tables"
           notebook_task:
             notebook_path: ./03_create_gold_analytics.py
-          new_cluster:
-            spark_version: "15.4.x-scala2.12"
-            num_workers: 0
-            node_type_id: "i3.xlarge"
-            spark_conf:
-              spark.master: "local[*]"
-              spark.databricks.cluster.profile: singleNode
-            custom_tags:
-              ResourceClass: SingleNode
 
         - task_key: semantic_search
           depends_on:
@@ -82,15 +50,6 @@ resources:
           description: "Build ML feature store and semantic search engine"
           notebook_task:
             notebook_path: ./04_semantic_search_engine.py
-          new_cluster:
-            spark_version: "15.4.x-scala2.12"
-            num_workers: 0
-            node_type_id: "i3.xlarge"
-            spark_conf:
-              spark.master: "local[*]"
-              spark.databricks.cluster.profile: singleNode
-            custom_tags:
-              ResourceClass: SingleNode
 
 targets:
   dev:

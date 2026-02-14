@@ -10,7 +10,7 @@ df_source = spark.read.table("silver_ceres_metadata")
 
 # Feature Engineering: Combine text fields
 df_ml = df_source.withColumn("text_soup", 
-    lower(concat_ws(" ", col("title"), col("title"), col("tags_array"), col("description")))
+    lower(concat_ws(" ", col("title"), col("title"), col("tags"), col("description")))
 ).withColumn("text_soup", regexp_replace(col("text_soup"), "[^a-zA-Z0-9\\s]", ""))
 
 # COMMAND ----------
