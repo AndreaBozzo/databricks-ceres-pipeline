@@ -16,6 +16,12 @@ This repository contains the **Databricks** analytics pipeline for the [Ceres](h
 
 ![Ceres Databricks Pipeline Architecture](docs/assets/architecture.png)
 
+## Screenshots
+
+![Pipeline overview](docs/assets/databrickscerespipeline.png)
+![Silver to Gold transformations](docs/assets/databrickscerespipeline2.png)
+![Example Viz](docs/assets/databrickscerespipeline3.png)
+
 ## Notebooks
 
 | # | Notebook | Layer | Description |
