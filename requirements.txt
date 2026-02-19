@@ -1,0 +1,3 @@
+# Runtime dependencies installed on Databricks cluster via %pip
+huggingface_hub>=0.20,<1.0
+datasets>=2.20,<3.0

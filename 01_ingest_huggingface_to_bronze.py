@@ -1,43 +1,69 @@
 # Databricks notebook source
 # COMMAND ----------
-# Dependency pinning is required to ensure compatibility with Databricks Runtime and HF FileSystem
-%pip install "huggingface_hub<0.20" "datasets==2.15.0"
+# Install runtime dependencies (see requirements.txt for version ranges)
+%pip install "huggingface_hub>=0.20,<1.0" "datasets>=2.20,<3.0"
 
 # COMMAND ----------
 dbutils.library.restartPython()
 
 # COMMAND ----------
+import logging
+
+from huggingface_hub import HfApi
 from datasets import load_dataset
-import pandas as pd
 from pyspark.sql.functions import current_timestamp, lit
+from config import DATASET_NAME, BRONZE_TABLE
 
-# Configuration
-dataset_name = "AndreaBozzo/ceres-open-data-index"
-table_name = "bronze_ceres_metadata"
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ceres.bronze")
 
-# 1. Load Dataset from Hugging Face
-ds = load_dataset(dataset_name, split="train")
+# COMMAND ----------
+# 1. Check dataset fingerprint to skip ingestion if unchanged
+api = HfApi()
+dataset_info = api.dataset_info(DATASET_NAME)
+current_sha = dataset_info.sha
 
-# 2. Convert to Pandas to handle data types before Spark conversion
+last_sha = None
+if spark.catalog.tableExists(BRONZE_TABLE):
+    try:
+        last_sha = spark.read.table(BRONZE_TABLE).select("source_sha").first()[0]
+    except Exception:
+        pass  # column missing from older runs, proceed with ingestion
+
+if last_sha == current_sha:
+    logger.info("Skipping ingestion: dataset unchanged (sha=%s)", current_sha[:8])
+    dbutils.notebook.exit(f"SKIPPED: sha={current_sha[:8]}")
+
+logger.info("Dataset updated (sha=%s), proceeding with ingestion.", current_sha[:8])
+
+# COMMAND ----------
+# 2. Load dataset via HuggingFace datasets library and convert to Spark DataFrame
+# Uses Arrow under the hood — single driver load but more memory-efficient than raw Pandas
+ds = load_dataset(DATASET_NAME, split="train")
 pdf = ds.to_pandas()
 
-# Force object columns to string to prevent schema inference issues in Bronze
-for col in pdf.columns:
-    if pdf[col].dtype == 'object':
-        pdf[col] = pdf[col].astype(str)
+# Cast object columns to string for consistent Bronze schema
+for c in pdf.columns:
+    if pdf[c].dtype == "object":
+        pdf[c] = pdf[c].astype(str)
 
-# 3. Create Spark DataFrame
 df_raw = spark.createDataFrame(pdf)
+logger.info("Loaded %d records from HuggingFace.", len(pdf))
 
-# 4. Add Audit Columns
+# COMMAND ----------
+# 3. Add Audit Columns (including source SHA for fingerprint tracking)
 df_bronze = df_raw.withColumn("ingestion_ts", current_timestamp()) \
-                  .withColumn("source_system", lit("HuggingFace"))
+                  .withColumn("source_system", lit("HuggingFace")) \
+                  .withColumn("source_sha", lit(current_sha))
 
-# 5. Write to Delta Lake (Managed Table)
+# 4. Write to Delta Lake (Managed Table)
 df_bronze.write \
     .format("delta") \
     .mode("overwrite") \
     .option("overwriteSchema", "true") \
-    .saveAsTable(table_name)
+    .saveAsTable(BRONZE_TABLE)
 
-print(f"Success: Table {table_name} created with {df_bronze.count()} records.")
+# 5. Data quality check
+row_count = spark.read.table(BRONZE_TABLE).count()
+assert row_count > 0, f"Bronze table {BRONZE_TABLE} is empty after ingestion"
+logger.info("Bronze ingestion complete: %d records written (sha=%s).", row_count, current_sha[:8])
