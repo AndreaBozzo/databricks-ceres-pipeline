@@ -1,3 +1,4 @@
 # Development dependencies for local linting and testing
 ruff>=0.8.0
 pytest>=8.0.0
+pandas>=2.0.0
