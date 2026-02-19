@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="docs/assets/logo.jpeg" alt="Ceres logo" width="800" />
   <h1>Databricks Pipeline for Ceres</h1>
   <p><strong>Medallion Architecture pipeline for open data analytics on Databricks</strong></p>
   <p>
