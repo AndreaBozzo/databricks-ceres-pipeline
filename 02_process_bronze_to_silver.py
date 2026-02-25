@@ -17,20 +17,25 @@ logger.info("Read %d records from %s.", bronze_count, BRONZE_TABLE)
 # 2. Handle empty strings in date columns
 # 3. Convert tags string to array
 # 4. Standardize text fields
-df_silver = df_bronze \
-    .filter(col("is_duplicate") == "false") \
+df_silver = (
+    df_bronze
+    .filter(col("is_duplicate") == False)  # noqa: E712
     .withColumn("created_ts",
                 when(col("metadata_created") == "", None)
-                .otherwise(to_timestamp(col("metadata_created")))) \
+                .otherwise(to_timestamp(col("metadata_created"))))
     .withColumn("modified_ts",
                 when(col("metadata_modified") == "", None)
-                .otherwise(to_timestamp(col("metadata_modified")))) \
-    .withColumn("tags_array", split(col("tags"), ",\s*")) \
-    .withColumn("title", trim(col("title"))) \
-    .withColumn("portal", lower(trim(col("portal_name")))) \
+                .otherwise(to_timestamp(col("metadata_modified"))))
+    .withColumn("tags_array", split(col("tags"), r",\s*"))
+    .withColumn("title", trim(col("title")))
+    .withColumn("portal", lower(trim(col("portal_name"))))
+    .withColumn("first_seen_ts",
+                when(col("first_seen_at") == "", None)
+                .otherwise(to_timestamp(col("first_seen_at"))))
     .select(
         col("original_id"),
         col("portal"),
+        col("source_portal"),
         col("organization"),
         col("title"),
         col("description"),
@@ -39,8 +44,10 @@ df_silver = df_bronze \
         col("language"),
         col("created_ts"),
         col("modified_ts"),
+        col("first_seen_ts"),
         col("url")
     )
+)
 
 # Write to Silver Layer
 df_silver.write \

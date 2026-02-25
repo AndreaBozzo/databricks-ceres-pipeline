@@ -17,7 +17,7 @@ import pytest
 def apply_silver_transforms(df: pd.DataFrame) -> pd.DataFrame:
     """Apply the same cleaning rules as 02_process_bronze_to_silver.py."""
     # 1. Filter duplicates
-    df = df[df["is_duplicate"] == "false"].copy()
+    df = df[df["is_duplicate"] == False].copy()  # noqa: E712
 
     # 2. Parse timestamps (empty → None)
     for col_name in ("metadata_created", "metadata_modified"):
@@ -44,6 +44,7 @@ def sample_bronze_df() -> pd.DataFrame:
     return pd.DataFrame(
         {
             "original_id": ["id1", "id2", "id3"],
+            "source_portal": ["https://portal.a", "https://portal.b", "https://portal.a"],
             "portal_name": [" Milano ", "Roma", "Milano"],
             "organization": ["org_a", "org_b", "org_a"],
             "title": [" Dataset A ", "Dataset B", "Dataset C"],
@@ -53,8 +54,9 @@ def sample_bronze_df() -> pd.DataFrame:
             "language": ["it", "it", "en"],
             "metadata_created": ["2023-01-15T10:00:00", "", "2024-06-01T08:30:00"],
             "metadata_modified": ["2023-02-01T12:00:00", "2024-01-01T00:00:00", ""],
+            "first_seen_at": ["2026-02-18T06:09:01+00:00", "2026-02-18T06:09:01+00:00", ""],
             "url": ["http://a", "http://b", "http://c"],
-            "is_duplicate": ["false", "false", "true"],
+            "is_duplicate": [False, False, True],
         }
     )
 
@@ -88,7 +90,7 @@ class TestSilverTransformations:
     def test_empty_tags_become_empty_list(self, sample_bronze_df: pd.DataFrame):
         # id3 is duplicate so it's filtered. Manually test with a non-dup empty tag
         df = sample_bronze_df.copy()
-        df.loc[2, "is_duplicate"] = "false"
+        df.loc[2, "is_duplicate"] = False
         result = apply_silver_transforms(df)
         row_c = result[result["original_id"] == "id3"].iloc[0]
         assert row_c["tags"] == []
