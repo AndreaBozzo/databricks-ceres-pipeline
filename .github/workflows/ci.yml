@@ -33,7 +33,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -51,7 +51,7 @@ jobs:
     # Only runs when Databricks credentials are configured as repository secrets
     if: ${{ vars.HAS_DATABRICKS_CREDENTIALS == 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
