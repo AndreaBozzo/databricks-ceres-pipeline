@@ -11,7 +11,7 @@
 
 ---
 
-This repository contains the **Databricks** analytics pipeline for the [Ceres](https://github.com/AndreaBozzo/Ceres) project. It implements a **Medallion Architecture** (Bronze → Silver → Gold) that ingests the Ceres open data index from Hugging Face and produces analytics-ready tables plus a lightweight semantic search engine — all running on Databricks.
+This repository contains the **Databricks** analytics pipeline for the [Ceres](https://github.com/AndreaBozzo/Ceres) project. It implements a **Medallion Architecture** (Bronze → Silver → Gold) that ingests the Ceres open data index from Hugging Face and produces analytics-ready tables plus a lightweight semantic search engine, all running on Databricks.
 
 ## Architecture
 
