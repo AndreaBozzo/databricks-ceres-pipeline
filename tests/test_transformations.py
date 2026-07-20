@@ -3,7 +3,7 @@ Unit tests for Silver-layer transformation logic.
 
 These tests validate the core transformation rules without requiring
 a Databricks cluster. They use plain Python/Pandas equivalents of the
-Spark transformations defined in 02_process_bronze_to_silver.py.
+Silver transformations defined in pipeline/ceres_medallion.sql.
 """
 
 import pandas as pd

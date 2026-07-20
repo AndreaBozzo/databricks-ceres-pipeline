@@ -9,8 +9,6 @@ line-length = 120
 # by the Databricks Asset Bundle CLI instead.
 exclude = [
     "01_ingest_huggingface_to_bronze.py",
-    "02_process_bronze_to_silver.py",
-    "03_create_gold_analytics.py",
     "04_semantic_search_engine.py",
 ]
 

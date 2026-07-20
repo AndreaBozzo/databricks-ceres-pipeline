@@ -1,21 +1,43 @@
 # Databricks notebook source
 # COMMAND ----------
 # Install runtime dependencies (see requirements.txt for version ranges)
-%pip install "huggingface_hub>=0.24,<2.0" "datasets>=2.20,<5.0"
+%pip install "huggingface_hub>=0.24,<2.0"
 
 # COMMAND ----------
 dbutils.library.restartPython()
 
 # COMMAND ----------
+import shutil
 import logging
 
-from huggingface_hub import HfApi
-from datasets import load_dataset
-from pyspark.sql.functions import current_timestamp, lit
-from config import DATASET_NAME, BRONZE_TABLE
+from huggingface_hub import HfApi, hf_hub_download
+from pyspark.sql.functions import current_timestamp, lit, rand
+from config import DATASET_NAME, BRONZE_TABLE, quote_ident
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ceres.bronze")
+
+HF_FILENAME = "all.parquet"   # canonical complete index in the published snapshot
+STAGING_VOLUME = "staging"
+
+# COMMAND ----------
+# Resolve target catalog/schema (passed by the Asset Bundle job; safe defaults
+# for manual runs) and an optional row cap for cheap end-to-end test runs.
+dbutils.widgets.text("catalog", "main")
+dbutils.widgets.text("schema", "ceres")
+dbutils.widgets.text("sample_rows", "0")
+
+CATALOG = dbutils.widgets.get("catalog")
+SCHEMA = dbutils.widgets.get("schema")
+SAMPLE_ROWS = int(dbutils.widgets.get("sample_rows") or "0")
+
+# Validate + backtick-quote before interpolating into SQL (raises on bad names).
+CAT_Q = quote_ident(CATALOG)
+SCH_Q = quote_ident(SCHEMA)
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CAT_Q}.{SCH_Q}")
+spark.sql(f"USE CATALOG {CAT_Q}")
+spark.sql(f"USE SCHEMA {SCH_Q}")
+logger.info("Target: %s.%s (sample_rows=%d)", CATALOG, SCHEMA, SAMPLE_ROWS)
 
 # COMMAND ----------
 # 1. Check dataset fingerprint to skip ingestion if unchanged
@@ -30,25 +52,29 @@ if spark.catalog.tableExists(BRONZE_TABLE):
     except Exception:
         pass  # column missing from older runs, proceed with ingestion
 
-if last_sha == current_sha:
+if last_sha == current_sha and SAMPLE_ROWS == 0:
     logger.info("Skipping ingestion: dataset unchanged (sha=%s)", current_sha[:8])
     dbutils.notebook.exit(f"SKIPPED: sha={current_sha[:8]}")
 
 logger.info("Dataset updated (sha=%s), proceeding with ingestion.", current_sha[:8])
 
 # COMMAND ----------
-# 2. Load dataset via HuggingFace datasets library and convert to Spark DataFrame
-# Uses Arrow under the hood — single driver load but more memory-efficient than raw Pandas
-ds = load_dataset(DATASET_NAME, split="train")
-pdf = ds.to_pandas()
+# 2. Download the canonical all.parquet snapshot and read it with Spark.
+# We avoid the `datasets` library: its fsspec-based globbing is incompatible with
+# the Databricks runtime's fsspec. Serverless Spark also can't read the driver-local
+# HuggingFace cache, so we stage the file into a UC Volume first, then read it back.
+spark.sql(f"CREATE VOLUME IF NOT EXISTS {CAT_Q}.{SCH_Q}.`{STAGING_VOLUME}`")
+staged_path = f"/Volumes/{CATALOG}/{SCHEMA}/{STAGING_VOLUME}/{HF_FILENAME}"
+local_path = hf_hub_download(repo_id=DATASET_NAME, filename=HF_FILENAME, repo_type="dataset")
+shutil.copyfile(local_path, staged_path)
 
-# Cast object columns to string for consistent Bronze schema
-for c in pdf.columns:
-    if pdf[c].dtype == "object":
-        pdf[c] = pdf[c].astype(str)
-
-df_raw = spark.createDataFrame(pdf)
-logger.info("Loaded %d records from HuggingFace.", len(pdf))
+df_raw = spark.read.parquet(staged_path)
+if SAMPLE_ROWS > 0:
+    # Random sample, not a head LIMIT: all.parquet is ordered by portal, so a head
+    # slice would only cover the largest portal. Shuffle first to span all portals.
+    df_raw = df_raw.orderBy(rand(seed=42)).limit(SAMPLE_ROWS)
+    logger.info("Sampling %d rows (random, seed=42).", SAMPLE_ROWS)
+logger.info("Loaded snapshot from %s.", staged_path)
 
 # COMMAND ----------
 # 3. Add Audit Columns (including source SHA for fingerprint tracking)

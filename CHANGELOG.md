@@ -4,9 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `pipeline/ceres_medallion.sql` — the Silver and Gold layers as a **Lakeflow (Spark) Declarative Pipeline**: declarative materialized views with `EXPECT` data-quality expectations (replacing the notebooks' manual `assert`s) and built-in lineage.
+- `sample_rows` job parameter on the Bronze ingest for cheap end-to-end test runs (`0` = full load).
+- `catalog` / `schema` bundle variables threaded through the Bronze/search notebooks (as job params) and the pipeline, so `--var catalog=workspace` works end-to-end on Free Edition.
+
 ### Changed
 
-- Widen runtime dependency ranges to modern majors: `huggingface_hub>=0.24,<2.0` (was `<1.0`) and `datasets>=2.20,<5.0` (was `<3.0`), in both `requirements.txt` and the notebook `%pip` install. Only the stable `HfApi.dataset_info` and `load_dataset(...).to_pandas()` surfaces are used.
+- Migrated Silver/Gold from imperative notebooks to the Lakeflow pipeline; the job DAG is now `ingest_bronze` → `transform_medallion` (pipeline) → `semantic_search`.
+- Reworked Bronze ingestion to download `all.parquet` directly via `huggingface_hub` and read it with Spark (staged through a UC Volume for serverless), replacing the `datasets` library — whose fsspec globbing is incompatible with the Databricks runtime's fsspec (`HfFileSystem.find() got multiple values for keyword argument 'maxdepth'`). Bumped `huggingface_hub` to `>=0.24,<2.0` (was `<1.0`).
+- Sampling (`sample_rows`) is now a representative **random** sample; `all.parquet` is ordered by portal, so the previous head-slice would only have covered the largest portal.
+- README: updated for Databricks **Free Edition** (Community Edition retired 2026-01-01) and cross-linked the sibling `ceres-discovery-agent` (search/agent layer) to clarify this repo's batch-analytics scope.
+
+### Removed
+
+- `02_process_bronze_to_silver.py` and `03_create_gold_analytics.py` — superseded by `pipeline/ceres_medallion.sql`.
+- The `datasets` runtime dependency (Bronze now reads the parquet directly).
 
 ### Fixed
 

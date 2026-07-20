@@ -5,6 +5,8 @@ Validates that config.py contains sensible, non-empty values
 that won't cause silent failures at runtime.
 """
 
+import pytest
+
 from config import (
     BRONZE_TABLE,
     DATASET_NAME,
@@ -17,6 +19,7 @@ from config import (
     SILVER_TABLE,
     TITLE_WEIGHT,
     TOP_TOPICS_LIMIT,
+    quote_ident,
 )
 
 
@@ -65,3 +68,17 @@ class TestConfigValues:
     def test_min_valid_year_reasonable(self):
         assert isinstance(MIN_VALID_YEAR, int)
         assert 1900 <= MIN_VALID_YEAR <= 2025
+
+
+class TestQuoteIdent:
+    @pytest.mark.parametrize("name", ["main", "workspace", "ceres", "ceres_dev", "cat123"])
+    def test_valid_identifiers_are_backtick_quoted(self, name: str):
+        assert quote_ident(name) == f"`{name}`"
+
+    @pytest.mark.parametrize(
+        "name",
+        ["", "has space", "has-dash", "a.b", "drop`;", "tbl;DROP", "naïve"],
+    )
+    def test_invalid_identifiers_raise(self, name: str):
+        with pytest.raises(ValueError):
+            quote_ident(name)
