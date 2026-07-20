@@ -1,7 +1,7 @@
 # Databricks notebook source
 # COMMAND ----------
 # Install runtime dependencies (see requirements.txt for version ranges)
-%pip install "huggingface_hub>=0.20,<1.0" "datasets>=2.20,<3.0"
+%pip install "huggingface_hub>=0.24,<2.0" "datasets>=2.20,<5.0"
 
 # COMMAND ----------
 dbutils.library.restartPython()

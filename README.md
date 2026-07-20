@@ -91,7 +91,7 @@ No secrets are required. The pipeline reads from a public Hugging Face dataset.
 | `gold_monthly_trend` | Gold | Monthly dataset ingestion counts by portal |
 | `gold_topic_analysis` | Gold | Top 200 topics by frequency across portals |
 | `gold_portal_stats` | Gold | Per-portal statistics (dataset count, orgs, date range) |
-| `gold_ml_features` | Gold | TF-IDF feature vectors (1024-dim) for semantic search |
+| `gold_ml_features` | Gold | TF-IDF feature vectors (256-dim) for semantic search |
 
 ## Relationship to Ceres
 

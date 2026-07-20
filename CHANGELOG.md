@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Widen runtime dependency ranges to modern majors: `huggingface_hub>=0.24,<2.0` (was `<1.0`) and `datasets>=2.20,<5.0` (was `<3.0`), in both `requirements.txt` and the notebook `%pip` install. Only the stable `HfApi.dataset_info` and `load_dataset(...).to_pandas()` surfaces are used.
+
+### Fixed
+
+- README: `gold_ml_features` is 256-dim (matches `config.NUM_FEATURES`), not 1024-dim.
+
 ## [0.1.0] — 2026-02-19
 
 ### Added
