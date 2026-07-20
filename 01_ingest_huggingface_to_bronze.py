@@ -12,7 +12,7 @@ import logging
 
 from huggingface_hub import HfApi, hf_hub_download
 from pyspark.sql.functions import current_timestamp, lit, rand
-from config import DATASET_NAME, BRONZE_TABLE
+from config import DATASET_NAME, BRONZE_TABLE, quote_ident
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ceres.bronze")
@@ -31,9 +31,12 @@ CATALOG = dbutils.widgets.get("catalog")
 SCHEMA = dbutils.widgets.get("schema")
 SAMPLE_ROWS = int(dbutils.widgets.get("sample_rows") or "0")
 
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
-spark.sql(f"USE CATALOG {CATALOG}")
-spark.sql(f"USE SCHEMA {SCHEMA}")
+# Validate + backtick-quote before interpolating into SQL (raises on bad names).
+CAT_Q = quote_ident(CATALOG)
+SCH_Q = quote_ident(SCHEMA)
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CAT_Q}.{SCH_Q}")
+spark.sql(f"USE CATALOG {CAT_Q}")
+spark.sql(f"USE SCHEMA {SCH_Q}")
 logger.info("Target: %s.%s (sample_rows=%d)", CATALOG, SCHEMA, SAMPLE_ROWS)
 
 # COMMAND ----------
@@ -60,7 +63,7 @@ logger.info("Dataset updated (sha=%s), proceeding with ingestion.", current_sha[
 # We avoid the `datasets` library: its fsspec-based globbing is incompatible with
 # the Databricks runtime's fsspec. Serverless Spark also can't read the driver-local
 # HuggingFace cache, so we stage the file into a UC Volume first, then read it back.
-spark.sql(f"CREATE VOLUME IF NOT EXISTS {CATALOG}.{SCHEMA}.{STAGING_VOLUME}")
+spark.sql(f"CREATE VOLUME IF NOT EXISTS {CAT_Q}.{SCH_Q}.`{STAGING_VOLUME}`")
 staged_path = f"/Volumes/{CATALOG}/{SCHEMA}/{STAGING_VOLUME}/{HF_FILENAME}"
 local_path = hf_hub_download(repo_id=DATASET_NAME, filename=HF_FILENAME, repo_type="dataset")
 shutil.copyfile(local_path, staged_path)

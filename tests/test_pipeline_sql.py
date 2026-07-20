@@ -16,6 +16,9 @@ SQL_PATH = Path(__file__).resolve().parent.parent / "pipeline" / "ceres_medallio
 
 @pytest.fixture(scope="module")
 def sql_text() -> str:
+    # Assert existence here so a missing/renamed file fails with an actionable
+    # message rather than a bare FileNotFoundError during fixture setup.
+    assert SQL_PATH.is_file(), f"Missing pipeline SQL at {SQL_PATH}"
     # Collapse runs of whitespace so alignment padding doesn't break matches.
     return re.sub(r"\s+", " ", SQL_PATH.read_text(encoding="utf-8"))
 

@@ -6,7 +6,7 @@ from pyspark.sql.functions import (
     array, array_except, col, concat_ws, lit, lower,
     regexp_replace, size, split,
 )
-from config import SILVER_TABLE, GOLD_ML_FEATURES, NUM_FEATURES, TITLE_WEIGHT
+from config import SILVER_TABLE, GOLD_ML_FEATURES, NUM_FEATURES, TITLE_WEIGHT, quote_ident
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ceres.search")
@@ -16,8 +16,9 @@ logger = logging.getLogger("ceres.search")
 # for manual runs) so bare table names resolve to the pipeline's output.
 dbutils.widgets.text("catalog", "main")
 dbutils.widgets.text("schema", "ceres")
-spark.sql(f"USE CATALOG {dbutils.widgets.get('catalog')}")
-spark.sql(f"USE SCHEMA {dbutils.widgets.get('schema')}")
+# Validate + backtick-quote before interpolating into SQL (raises on bad names).
+spark.sql(f"USE CATALOG {quote_ident(dbutils.widgets.get('catalog'))}")
+spark.sql(f"USE SCHEMA {quote_ident(dbutils.widgets.get('schema'))}")
 
 # COMMAND ----------
 # Multilingual stopwords (hardcoded to avoid Spark ML on serverless)
