@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.2.0] — 2026-07-20
 
 ### Added
 
@@ -25,6 +25,10 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - README: `gold_ml_features` is 256-dim (matches `config.NUM_FEATURES`), not 1024-dim.
+
+### Security
+
+- `config.quote_ident()` validates and backtick-quotes `catalog`/`schema`/volume identifiers before they are interpolated into `USE`/`CREATE` statements in the notebooks, keeping those statements robust and injection-safe.
 
 ## [0.1.0] — 2026-02-19
 
