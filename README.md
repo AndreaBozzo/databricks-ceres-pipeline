@@ -13,6 +13,10 @@
 
 This repository contains the **Databricks** analytics pipeline for the [Ceres](https://github.com/AndreaBozzo/Ceres) project. It implements a **Medallion Architecture** (Bronze → Silver → Gold) that ingests the Ceres open data index from Hugging Face and produces analytics-ready tables plus a lightweight semantic search engine, all running on Databricks.
 
+The Silver and Gold layers are expressed as a **[Lakeflow (Spark) Declarative Pipeline](https://docs.databricks.com/aws/en/ldp/)** — declarative materialized views with built-in data-quality expectations and lineage. The Bronze layer stays a Python task because it pulls from the Hugging Face Hub and keeps a SHA fingerprint to skip unchanged loads.
+
+> **Looking for natural-language discovery?** Ask questions of this index in plain English with the sibling project [**ceres-discovery-agent**](https://github.com/AndreaBozzo/ceres-discovery-agent) (Agent Bricks: Genie + Knowledge Assistant). This repo is the **batch-analytics** layer; that repo is the **search/agent** layer.
+
 ## Architecture
 
 ![Ceres Databricks Pipeline Architecture](docs/assets/architecture.png)
@@ -23,21 +27,20 @@ This repository contains the **Databricks** analytics pipeline for the [Ceres](h
 ![Silver to Gold transformations](docs/assets/databrickscerespipeline2.png)
 ![Example Viz](docs/assets/databrickscerespipeline3.png)
 
-## Notebooks
+## Components
 
-| # | Notebook | Layer | Description |
-|---|----------|-------|-------------|
-| 01 | `01_ingest_huggingface_to_bronze.py` | Bronze | Loads the dataset from Hugging Face, coerces types, and writes to a managed Delta table with audit columns |
-| 02 | `02_process_bronze_to_silver.py` | Silver | Deduplicates, parses timestamps, splits tags into arrays, and standardizes text fields |
-| 03 | `03_create_gold_analytics.py` | Gold | Produces three analytics tables: monthly ingestion trends, topic frequency analysis, and portal-level statistics |
-| 04 | `04_semantic_search_engine.py` | Gold / ML | Builds a TF-IDF feature store using Spark ML and exposes a simple hashing-based search engine with an interactive widget |
+| Component | Layer | Kind | Description |
+|-----------|-------|------|-------------|
+| `01_ingest_huggingface_to_bronze.py` | Bronze | Python notebook | Loads the dataset from Hugging Face, coerces types, and writes to a managed Delta table with audit columns. SHA fingerprint skips unchanged loads; a `sample_rows` widget caps rows for cheap test runs |
+| `pipeline/ceres_medallion.sql` | Silver + Gold | Lakeflow Declarative Pipeline | Declarative materialized views: dedup/clean Silver (with `EXPECT` data-quality expectations), plus the three Gold analytics tables — monthly trends, topic frequency, and portal statistics |
+| `04_semantic_search_engine.py` | Gold / ML | SQL notebook | Builds a TF-IDF feature store and exposes a lightweight hashing-based search with an interactive widget (a no-LLM demo; for real NL discovery use [ceres-discovery-agent](https://github.com/AndreaBozzo/ceres-discovery-agent)) |
 
 ## Quick Start
 
 ### Prerequisites
 
-- A Databricks workspace (Community Edition works for testing)
-- Databricks CLI configured (`databricks configure`)
+- A Databricks workspace ([Free Edition](https://www.databricks.com/learn/free-edition) works for testing; it replaced the retired Community Edition)
+- Databricks CLI configured (`databricks auth login`)
 
 ### Option A — Databricks Asset Bundles (recommended)
 
@@ -52,15 +55,21 @@ databricks bundle validate
 # Deploy to your workspace
 databricks bundle deploy -t dev
 
-# Run the pipeline
+# Run the full job (ingest → Lakeflow transforms → search)
 databricks bundle run ceres_pipeline -t dev
+
+# Cheap end-to-end smoke run on a 50k-row sample
+databricks bundle run ceres_pipeline -t dev --params sample_rows=50000
+
+# On Free Edition, if creating the `main` catalog is denied, fall back:
+databricks bundle deploy -t dev --var catalog=workspace
 ```
 
 ### Option B — Manual import
 
-1. Import the four `.py` notebooks into your Databricks workspace
-2. Run them in order: `01` → `02` → `03` → `04`
-3. Notebook `01` installs HuggingFace dependencies automatically via `%pip`
+1. Import `01_ingest_huggingface_to_bronze.py` and `04_semantic_search_engine.py` into your workspace
+2. Create a Lakeflow pipeline from `pipeline/ceres_medallion.sql` (set the `bronze_table`, `min_valid_year`, and `top_topics_limit` configuration values)
+3. Run: notebook `01` → the Lakeflow pipeline → notebook `04`. Notebook `01` installs HuggingFace dependencies automatically via `%pip`
 
 ## Configuration
 
@@ -73,20 +82,25 @@ The pipeline is configured as a [Databricks Asset Bundle](https://docs.databrick
 | `dev` | Development — runs on your personal workspace folder |
 | `prod` | Production — designed for a shared workspace with job scheduling |
 
-### Environment variables
+### Bundle variables and parameters
 
-No secrets are required. The pipeline reads from a public Hugging Face dataset.
+No secrets are required — the pipeline reads from a public Hugging Face dataset.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `dataset_name` | `AndreaBozzo/ceres-open-data-index` | HuggingFace dataset identifier |
-| `table_name` | `bronze_ceres_metadata` | Bronze target table |
+| Name | Kind | Default | Description |
+|------|------|---------|-------------|
+| `catalog` | bundle var (`--var`) | `main` | Unity Catalog for all layers (use `workspace` on Free Edition if a new catalog is denied) |
+| `schema` | bundle var (`--var`) | `ceres` | Schema (database) for all tables |
+| `sample_rows` | job param (`--params`) | `0` | Cap Bronze rows for a cheap test run (`0` = full load) |
+
+Dataset identifier and table names are centralized in [`config.py`](config.py); the Silver/Gold table names and analytics knobs (`min_valid_year`, `top_topics_limit`) are also set as pipeline `configuration` in [`databricks.yml`](databricks.yml).
 
 ## Delta Tables Produced
 
+Silver and Gold are Lakeflow **materialized views** (Delta-backed); Bronze and the ML features are managed Delta tables written by the notebook tasks.
+
 | Table | Layer | Description |
 |-------|-------|-------------|
-| `bronze_ceres_metadata` | Bronze | Raw dataset metadata + `ingestion_ts`, `source_system` |
+| `bronze_ceres_metadata` | Bronze | Raw dataset metadata + `ingestion_ts`, `source_system`, `source_sha` |
 | `silver_ceres_metadata` | Silver | Cleaned, deduplicated, with parsed timestamps and tag arrays |
 | `gold_monthly_trend` | Gold | Monthly dataset ingestion counts by portal |
 | `gold_topic_analysis` | Gold | Top 200 topics by frequency across portals |

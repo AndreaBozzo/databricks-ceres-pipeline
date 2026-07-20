@@ -6,17 +6,32 @@ bundle:
 
 variables:
   catalog:
-    description: Unity Catalog name
+    description: Unity Catalog name (use `workspace` on Free Edition if a new catalog is denied)
     default: main
   schema:
     description: Schema (database) name
     default: ceres
 
 resources:
+  pipelines:
+    ceres_medallion:
+      name: "Ceres Medallion Transforms"
+      catalog: ${var.catalog}
+      schema: ${var.schema}
+      serverless: true
+      channel: CURRENT
+      configuration:
+        bronze_table: "${var.catalog}.${var.schema}.bronze_ceres_metadata"
+        min_valid_year: "2000"
+        top_topics_limit: "200"
+      libraries:
+        - file:
+            path: ./pipeline/ceres_medallion.sql
+
   jobs:
     ceres_pipeline:
       name: "Ceres Open Data Pipeline"
-      description: "Medallion Architecture pipeline: HuggingFace → Bronze → Silver → Gold + Semantic Search"
+      description: "Medallion Architecture: HuggingFace → Bronze (task) → Silver/Gold (Lakeflow pipeline) + Semantic Search"
       schedule:
         quartz_cron_expression: "0 0 6 * * ?"   # Daily at 06:00 UTC
         timezone_id: "UTC"
@@ -26,30 +41,29 @@ resources:
         pipeline: medallion
       tasks:
         - task_key: ingest_bronze
-          description: "Ingest Ceres dataset from Hugging Face into Bronze layer"
+          description: "Ingest Ceres dataset from Hugging Face into the Bronze layer"
           notebook_task:
             notebook_path: ./01_ingest_huggingface_to_bronze.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
 
-        - task_key: process_silver
+        - task_key: transform_medallion
           depends_on:
             - task_key: ingest_bronze
-          description: "Clean and transform Bronze data into Silver layer"
-          notebook_task:
-            notebook_path: ./02_process_bronze_to_silver.py
-
-        - task_key: create_gold
-          depends_on:
-            - task_key: process_silver
-          description: "Generate Gold analytics tables"
-          notebook_task:
-            notebook_path: ./03_create_gold_analytics.py
+          description: "Declaratively build Silver + Gold materialized views from Bronze"
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.ceres_medallion.id}
 
         - task_key: semantic_search
           depends_on:
-            - task_key: process_silver
+            - task_key: transform_medallion
           description: "Build ML feature store and semantic search engine"
           notebook_task:
             notebook_path: ./04_semantic_search_engine.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
 
 targets:
   dev:

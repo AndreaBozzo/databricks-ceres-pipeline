@@ -1,3 +1,5 @@
-# Runtime dependencies installed on Databricks cluster via %pip
+# Runtime dependencies installed on Databricks cluster via %pip.
+# Only huggingface_hub is needed: the Bronze notebook downloads all.parquet directly
+# and reads it with Spark, avoiding the `datasets` library (whose fsspec globbing is
+# incompatible with the Databricks runtime's fsspec).
 huggingface_hub>=0.24,<2.0
-datasets>=2.20,<5.0

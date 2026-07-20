@@ -11,6 +11,15 @@ from config import SILVER_TABLE, GOLD_ML_FEATURES, NUM_FEATURES, TITLE_WEIGHT
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ceres.search")
 
+# COMMAND ----------
+# Resolve target catalog/schema (passed by the Asset Bundle job; safe defaults
+# for manual runs) so bare table names resolve to the pipeline's output.
+dbutils.widgets.text("catalog", "main")
+dbutils.widgets.text("schema", "ceres")
+spark.sql(f"USE CATALOG {dbutils.widgets.get('catalog')}")
+spark.sql(f"USE SCHEMA {dbutils.widgets.get('schema')}")
+
+# COMMAND ----------
 # Multilingual stopwords (hardcoded to avoid Spark ML on serverless)
 STOPWORDS = sorted(set([
     # English core
